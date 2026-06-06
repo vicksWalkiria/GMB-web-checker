@@ -159,7 +159,7 @@ async function startAnalysis() {
         console.log("Results:", results);
 
         // 6. Render & Bind Export
-        renderResults(results);
+        renderResults(results, gmbData);
         const btnExport = document.getElementById('btn-export');
         btnExport.onclick = () => exportToMarkdown(results, gmbData);
         switchState('result-state');
@@ -170,7 +170,7 @@ async function startAnalysis() {
     }
 }
 
-function renderResults(results) {
+function renderResults(results, gmbData) {
     // Render Score
     const scoreText = document.getElementById('score-text');
     const scorePath = document.getElementById('score-path');
