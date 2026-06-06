@@ -115,7 +115,7 @@ async function startAnalysis() {
 
         if (internalLinks.length > 0) {
             candidateLinks = internalLinks
-                .map(url => ({ url, score: scoreInternalLink(url) }))
+                .map(url => ({ url, score: scoreInternalLink(url, gmbData) }))
                 .filter(item => item.score > 0)
                 .sort((a, b) => b.score - a.score)
                 .map(item => item.url);
@@ -226,22 +226,13 @@ function renderResults(results) {
         let pagesHtml = '<strong>Páginas analizadas:</strong><ul style="margin-top: 4px; padding-left: 16px; margin-bottom: 0;">';
         
         const homeUrl = results.analyzedPages[0];
-        try {
-            let homePath = new URL(homeUrl).pathname || '/';
-            pagesHtml += `<li><a href="${homeUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">Home (${homePath})</a></li>`;
-        } catch(e) {
-            pagesHtml += `<li><a href="${homeUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">Home</a></li>`;
-        }
+        pagesHtml += `<li><a href="${homeUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">Home: ${homeUrl}</a></li>`;
         
         if (results.analyzedPages.length > 1) {
             for (let i = 1; i < results.analyzedPages.length; i++) {
                 const p = results.analyzedPages[i];
-                try {
-                    let pathname = new URL(p).pathname || p;
-                    pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${pathname}</a></li>`;
-                } catch(e) {
-                    pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${p}</a></li>`;
-                }
+                const label = getPageLabel(p, homeUrl, gmbData);
+                pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${label}: ${p}</a></li>`;
             }
         }
         pagesHtml += '</ul>';
@@ -301,7 +292,9 @@ function exportToMarkdown(results, gmbData) {
         
         if (results.analyzedPages.length > 1) {
             for (let i = 1; i < results.analyzedPages.length; i++) {
-                md += `- ${results.analyzedPages[i]}\n`;
+                const p = results.analyzedPages[i];
+                const label = getPageLabel(p, homeUrl, gmbData);
+                md += `- ${label}: ${p}\n`;
             }
         } else {
             md += `\nPáginas internas analizadas: ninguna.\n`;
@@ -329,7 +322,7 @@ function exportToMarkdown(results, gmbData) {
     });
 }
 
-function scoreInternalLink(url) {
+function scoreInternalLink(url, gmbData) {
     let path = '';
     try {
         path = new URL(url).pathname.toLowerCase();
@@ -337,11 +330,37 @@ function scoreInternalLink(url) {
         path = url.toLowerCase();
     }
     
-    if (/(contacto|contact)/i.test(path)) return 100;
-    if (/(servicios|servicio|services|service)/i.test(path)) return 90;
-    if (/(sobre|nosotros|quienes-somos|about)/i.test(path)) return 80;
-    if (/(aviso-legal|legal)/i.test(path)) return 60;
-    if (/(privacidad|privacy)/i.test(path)) return 50;
+    let score = 0;
     
-    return 0;
+    if (/(contacto|contact)/i.test(path)) score = 100;
+    else if (/(sobre|nosotros|quienes-somos|about)/i.test(path)) score = 80;
+    else if (/(servicios|servicio|services|service)/i.test(path)) score = 70;
+    else if (/(aviso-legal|legal)/i.test(path)) score = 60;
+    else if (/(privacidad|privacy)/i.test(path)) score = 50;
+    
+    if (gmbData && score > 0) {
+        const locationTokens = gmbData.address ? gmbData.address.toLowerCase().split(/[ ,]+/).filter(t => t.length > 4) : [];
+        if (locationTokens.some(token => path.includes(token))) {
+            score += 25; // Boost local pages
+        }
+    }
+    
+    return score;
+}
+
+function getPageLabel(url, homeUrl, gmbData) {
+    let path = '';
+    try { path = new URL(url).pathname.toLowerCase(); } catch(e) { path = url.toLowerCase(); }
+    
+    if (/(contacto|contact)/.test(path)) return 'Contacto';
+    if (/(sobre|nosotros|quienes)/.test(path)) return 'Sobre nosotros';
+    if (/(legal|privacidad)/.test(path)) return 'Legal / Privacidad';
+    
+    if (/(servicio|service)/.test(path)) {
+        const locationTokens = gmbData && gmbData.address ? gmbData.address.toLowerCase().split(/[ ,]+/).filter(t => t.length > 4) : [];
+        const isLocal = locationTokens.some(token => path.includes(token));
+        return isLocal ? 'Servicio local' : 'Servicio general';
+    }
+    
+    return 'Página interna';
 }

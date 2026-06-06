@@ -180,7 +180,19 @@ class Comparator {
 
             if (gmbPhoneNorm) {
                 if (schemaPhoneFound) {
-                     addResult('schema', 'success', true, 'Teléfono en Schema coincide con GMB', '', `Schema en: ${schemaPhoneSource}`);
+                     addResult('schema', 'success', true, 'Teléfono en Schema coincide con GMB', '', `Detectado en: ${schemaPhoneSource}`);
+                     
+                     // Check if schema is on home
+                     let isHome = false;
+                     try {
+                         const homeUrlNorm = new URL(this.web.finalUrl || this.web.analyzedPages[0]).pathname;
+                         const schemaUrlNorm = new URL(schemaPhoneSource).pathname;
+                         isHome = (homeUrlNorm === schemaUrlNorm || schemaUrlNorm === '/' || schemaUrlNorm === '');
+                     } catch(e) {}
+                     
+                     if (!isHome) {
+                         addResult('schema', 'info', false, '', 'Recomendación: reforzar también el schema principal en la Home o en la página local más relevante.', '');
+                     }
                 } else if (contradictoryPhone) {
                      addResult('schema', 'critical', false, '', 'El Schema declara un teléfono contradictorio a GMB', '');
                 } else if (phoneInWeb) {

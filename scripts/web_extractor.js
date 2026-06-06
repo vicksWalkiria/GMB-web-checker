@@ -71,6 +71,7 @@ class WebExtractor {
     }
 
     normalizeHost(host) {
+        if (!host) return '';
         return host.replace(/^www\./, '').toLowerCase();
     }
 
