@@ -14,32 +14,41 @@ function extractGMBData() {
     try {
         // 1. Name
         const h1 = document.querySelector('h1');
-        if (h1) data.name = h1.innerText.trim();
+        const searchTitle = document.querySelector('h2[data-attrid="title"], div[data-attrid="title"]');
+        if (searchTitle) {
+            data.name = searchTitle.innerText.trim();
+        } else if (h1) {
+            data.name = h1.innerText.trim();
+        }
 
         // 2. Website
-        // Maps often has a link with data-item-id="authority" or aria-label="Sitio web"
         const webLinks = Array.from(document.querySelectorAll('a'));
         const webLink = webLinks.find(a => 
             a.getAttribute('data-item-id') === 'authority' || 
             (a.getAttribute('aria-label') && a.getAttribute('aria-label').toLowerCase().includes('sitio web')) ||
-            (a.innerText && a.innerText.toLowerCase().includes('sitio web'))
+            (a.innerText && a.innerText.toLowerCase() === 'sitio web') ||
+            a.classList.contains('ab_button') && a.innerText.toLowerCase().includes('sitio web')
         );
         if (webLink) data.website = webLink.href;
 
         // 3. Phone
-        // Using aria-labels and regex heuristics
         const phoneButton = document.querySelectorAll('button[data-item-id^="phone:"]');
         if (phoneButton.length > 0) {
-            const phoneStr = phoneButton[0].getAttribute('data-item-id').replace('phone:tel:', '');
-            data.phone = phoneStr;
+            data.phone = phoneButton[0].getAttribute('data-item-id').replace('phone:tel:', '');
         } else {
-            // Heuristic search
-            const phoneRegex = /(?:\+34|0034|34)?[ -]*(?:6|7|8|9)[0-9]{2}[ -]*[0-9]{3}[ -]*[0-9]{3}/; // Spanish pattern roughly
+            // Heuristic search for Maps
             const buttons = Array.from(document.querySelectorAll('button, div'));
             const phoneEl = buttons.find(el => el.getAttribute('aria-label') && el.getAttribute('aria-label').toLowerCase().includes('teléfono'));
             if (phoneEl) {
                 const match = phoneEl.getAttribute('aria-label').match(/[0-9 ]{9,}/);
                 if (match) data.phone = match[0].trim();
+            } else {
+                // Heuristic search for Google Search Knowledge Panel
+                const phoneSpan = Array.from(document.querySelectorAll('span, div')).find(el => el.innerText && el.innerText.match(/Teléfono:\s*([0-9\s]+)/i));
+                if (phoneSpan) {
+                    const match = phoneSpan.innerText.match(/Teléfono:\s*([0-9\s]+)/i);
+                    if (match) data.phone = match[1].trim();
+                }
             }
         }
 
@@ -55,10 +64,18 @@ function extractGMBData() {
         }
 
         // 5. Category
-        // Usually a button next to the rating
         const catButtons = Array.from(document.querySelectorAll('button.fontBodyMedium'));
         if (catButtons.length > 0) {
             data.category = catButtons[0].innerText.trim();
+        } else {
+            // Google Search Knowledge Panel category
+            const searchCat = document.querySelector('div[data-attrid="kc:/local:primary category"]');
+            if (searchCat) {
+                data.category = searchCat.innerText.trim();
+            } else {
+                 const catSpan = Array.from(document.querySelectorAll('span')).find(el => el.innerText && el.innerText.match(/Servicio de [a-zA-Z\s]+/i));
+                 if(catSpan) data.category = catSpan.innerText.trim();
+            }
         }
 
     } catch (e) {

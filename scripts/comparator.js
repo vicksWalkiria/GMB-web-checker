@@ -42,11 +42,23 @@ class Comparator {
         const webTitleNorm = Normalizer.normalizeText(this.web.title);
         const webH1Norm = Normalizer.normalizeText(this.web.h1);
         
+        const checkOverlap = (str1, str2) => {
+            if (!str1 || !str2) return false;
+            const t1 = str1.split(' ').filter(x => x.length > 2);
+            const t2 = str2.split(' ').filter(x => x.length > 2);
+            if (t1.length === 0) return false;
+            let matches = 0;
+            for(let w of t1) {
+                if (t2.includes(w)) matches++;
+            }
+            return (matches / t1.length) >= 0.4; // At least 40% words match for name
+        };
+
         if (gmbNameNorm) {
-            const nameInTitle = webTitleNorm.includes(gmbNameNorm);
-            const nameInH1 = webH1Norm.includes(gmbNameNorm);
+            const nameInTitle = checkOverlap(gmbNameNorm, webTitleNorm);
+            const nameInH1 = checkOverlap(gmbNameNorm, webH1Norm);
             addResult('nap', 20, nameInTitle || nameInH1,
-                (nameInTitle || nameInH1) ? 'Nombre del negocio detectado en Title o H1' : 'Nombre del negocio ausente en Title/H1',
+                (nameInTitle || nameInH1) ? 'Nombre del negocio (o parte principal) detectado en Title o H1' : 'Nombre del negocio ausente en Title/H1',
                 `Title: ${this.web.title}`
             );
         }
@@ -67,11 +79,10 @@ class Comparator {
         }
 
         // --- Schema Analysis ---
-        const localBusinessSchemas = this.web.jsonLd.filter(s => 
-            s['@type'] === 'LocalBusiness' || 
-            s['@type'] === 'ProfessionalService' ||
-            s['@type'] === 'Organization'
-        );
+        const localBusinessSchemas = this.web.jsonLd.filter(s => {
+            const types = Array.isArray(s['@type']) ? s['@type'] : [s['@type']];
+            return types.some(t => t === 'LocalBusiness' || t === 'ProfessionalService' || t === 'Organization');
+        });
 
         if (localBusinessSchemas.length > 0) {
             addResult('schema', 15, true, 'Se detectó Schema LocalBusiness/Organization', `${localBusinessSchemas.length} schemas encontrados`);
@@ -93,13 +104,13 @@ class Comparator {
         // --- Services / Category ---
         const gmbCatNorm = Normalizer.normalizeText(this.gmb.category);
         if (gmbCatNorm) {
-            const catInTitle = webTitleNorm.includes(gmbCatNorm);
-            const catInH1 = webH1Norm.includes(gmbCatNorm);
-            const catInText = webTextNorm.includes(gmbCatNorm);
+            const catInTitle = checkOverlap(gmbCatNorm, webTitleNorm);
+            const catInH1 = checkOverlap(gmbCatNorm, webH1Norm);
+            const catInText = checkOverlap(gmbCatNorm, webTextNorm);
             
             addResult('services', 10, catInTitle || catInH1,
-                (catInTitle || catInH1) ? 'Categoría GMB aparece en Title/H1' : 'Categoría GMB ausente en Title/H1',
-                `Categoría: ${this.gmb.category}`
+                (catInTitle || catInH1) ? 'Categoría GMB mencionada en Title/H1' : 'Categoría GMB ausente en Title/H1',
+                `Categoría GMB: ${this.gmb.category}`
             );
 
             addResult('services', 10, catInText,
