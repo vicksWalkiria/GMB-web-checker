@@ -225,10 +225,10 @@ class Comparator {
                 `Categoría GMB: ${this.gmb.category}`
             );
 
-            if (!catInTitle && !catInH1 && catInText) {
-                addResult('services', 'medium', false, '', 'Categoría GMB aparece en el texto visible, pero no en zonas fuertes (Title/H1)', '');
-            } else if (catInText) {
+            if (catInText) {
                 addResult('services', 'success', true, 'Categoría GMB mencionada en textos visibles', '');
+            } else {
+                addResult('services', 'low', false, '', 'Categoría GMB tampoco se menciona en textos visibles', '');
             }
         }
 
