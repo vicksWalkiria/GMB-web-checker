@@ -8,7 +8,8 @@ class Comparator {
             nap: [],
             schema: [],
             url: [],
-            services: []
+            services: [],
+            analyzedPages: this.web.analyzedPages || []
         };
     }
 
@@ -83,7 +84,6 @@ class Comparator {
         const gmbPhoneNorm = Normalizer.normalizePhone(this.gmb.phone);
         const gmbNameNorm = Normalizer.normalizeText(this.gmb.name);
         const gmbAddressNorm = Normalizer.normalizeAddress(this.gmb.address);
-        const webTextNorm = Normalizer.normalizeText(this.web.texts);
 
         // Name
         if (gmbNameNorm) {
@@ -92,34 +92,47 @@ class Comparator {
             const nameInTitle = checkOverlap(gmbNameNorm, webTitleNorm);
             const nameInH1 = checkOverlap(gmbNameNorm, webH1Norm);
             addResult('nap', 'medium', nameInTitle || nameInH1,
-                'Nombre del negocio (o parte) detectado en Title o H1', 
-                'Nombre del negocio ausente en Title/H1',
-                `Title: ${this.web.title}`
+                'Nombre del negocio (o parte) detectado en Title o H1 de la Home', 
+                'Nombre del negocio ausente en Title/H1 de la Home',
+                `Title Home: ${this.web.title}`
             );
         }
 
         // Phone
         let phoneInWeb = false;
+        let phoneSource = '';
         if (gmbPhoneNorm) {
-            phoneInWeb = this.web.phones.includes(gmbPhoneNorm);
+            const matchedPhoneObj = this.web.phones.find(p => p.value === gmbPhoneNorm);
+            if (matchedPhoneObj) {
+                phoneInWeb = true;
+                phoneSource = matchedPhoneObj.sourceUrl;
+            }
             addResult('nap', 'critical', phoneInWeb, 
-                'Teléfono GMB encontrado en textos de la web', 
-                'Teléfono GMB no encontrado en textos de la web',
-                `GMB: ${this.gmb.phone}`
+                'Teléfono GMB encontrado en el sitio web', 
+                'Teléfono GMB no encontrado en el sitio web',
+                phoneInWeb ? `Encontrado en: ${phoneSource}` : `GMB: ${this.gmb.phone}`
             );
         }
 
         // Address
         let addressInWeb = false;
+        let addressSource = '';
         if (gmbAddressNorm && gmbAddressNorm.length > 5) {
             const tokens = gmbAddressNorm.split(' ').filter(t => t.length > 4);
             if(tokens.length > 0) {
-                const foundTokens = tokens.filter(t => webTextNorm.includes(t));
-                addressInWeb = (foundTokens.length / tokens.length) >= 0.5;
+                for (let textObj of this.web.texts) {
+                    const textNorm = Normalizer.normalizeText(textObj.text);
+                    const foundTokens = tokens.filter(t => textNorm.includes(t));
+                    if ((foundTokens.length / tokens.length) >= 0.5) {
+                        addressInWeb = true;
+                        addressSource = textObj.sourceUrl;
+                        break;
+                    }
+                }
                 addResult('nap', 'critical', addressInWeb,
                     'Señales de dirección de GMB encontradas en textos web', 
                     'Dirección GMB no parece mencionarse en la web',
-                    `GMB: ${this.gmb.address}`
+                    addressInWeb ? `Encontrado en: ${addressSource}` : `GMB: ${this.gmb.address}`
                 );
             }
         }
@@ -153,17 +166,21 @@ class Comparator {
             // Phone in schema
             let schemaPhoneFound = false;
             let contradictoryPhone = false;
+            let schemaPhoneSource = '';
             localBusinessSchemas.forEach(s => {
                 if (s.telephone) {
                     const sPhone = Normalizer.normalizePhone(s.telephone);
-                    if (sPhone === gmbPhoneNorm) schemaPhoneFound = true;
+                    if (sPhone === gmbPhoneNorm) {
+                        schemaPhoneFound = true;
+                        schemaPhoneSource = s.sourceUrl;
+                    }
                     else contradictoryPhone = true;
                 }
             });
 
             if (gmbPhoneNorm) {
                 if (schemaPhoneFound) {
-                     addResult('schema', 'success', true, 'Teléfono en Schema coincide con GMB', '');
+                     addResult('schema', 'success', true, 'Teléfono en Schema coincide con GMB', '', `Schema en: ${schemaPhoneSource}`);
                 } else if (contradictoryPhone) {
                      addResult('schema', 'critical', false, '', 'El Schema declara un teléfono contradictorio a GMB', '');
                 } else if (phoneInWeb) {
@@ -175,7 +192,7 @@ class Comparator {
             if (gmbAddressNorm) {
                 let schemaAddressFound = false;
                 localBusinessSchemas.forEach(s => {
-                     if (s.address) schemaAddressFound = true; // just checking existence to avoid complex object parsing for now
+                     if (s.address) schemaAddressFound = true;
                 });
                 if(!schemaAddressFound && addressInWeb) {
                      addResult('schema', 'medium', false, '', 'Dirección visible en la web, pero ausente en el Schema', '');
@@ -238,22 +255,25 @@ class Comparator {
 
             const catInTitle = checkOverlap(gmbCatNorm, webTitleNorm);
             const catInH1 = checkOverlap(gmbCatNorm, webH1Norm);
-            const catInText = checkOverlap(gmbCatNorm, webTextNorm);
+            
+            let catInInternalTexts = false;
+            let catSource = '';
+            for (let textObj of this.web.texts) {
+                 if (checkOverlap(gmbCatNorm, Normalizer.normalizeText(textObj.text))) {
+                     catInInternalTexts = true;
+                     catSource = textObj.sourceUrl;
+                     break;
+                 }
+            }
             
             if (hasSemanticMatch) {
-                addResult('services', 'success', true, 'La categoría GMB es genérica, pero la web refuerza una especialización compatible en Title/H1', '');
+                addResult('services', 'success', true, 'La categoría GMB es genérica, pero la Home refuerza una especialización compatible en Title/H1', '');
+            } else if (catInTitle || catInH1) {
+                addResult('services', 'success', true, 'Categoría GMB reforzada en Title o H1 de la Home', '');
+            } else if (catInInternalTexts) {
+                addResult('services', 'medium', false, '', 'Categoría GMB mencionada en el sitio, pero no en zonas fuertes (Title/H1 de la Home)', `Encontrada en: ${catSource}`);
             } else {
-                addResult('services', 'medium', catInTitle || catInH1,
-                    'Categoría GMB reforzada en Title o H1', 
-                    'Categoría principal no reforzada en Title ni H1',
-                    `Categoría GMB: ${this.gmb.category}`
-                );
-            }
-
-            if (catInText) {
-                addResult('services', 'success', true, 'Categoría GMB mencionada en textos visibles', '');
-            } else {
-                addResult('services', 'low', false, '', 'Categoría GMB tampoco se menciona en textos visibles', '');
+                addResult('services', 'medium', false, '', 'Categoría principal no mencionada explícitamente en el sitio', `Categoría GMB: ${this.gmb.category}`);
             }
         }
 

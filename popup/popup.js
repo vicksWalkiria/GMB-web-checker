@@ -66,42 +66,91 @@ async function startAnalysis() {
              throw new Error('La ficha no tiene sitio web enlazado para comparar.');
         }
 
-        updateLoading('Descargando web oficial...');
+        updateLoading('Descargando web oficial (Home)...');
 
         // 3. Fetch website via background service worker
-        const response = await new Promise((resolve) => {
+        const homeResponse = await new Promise((resolve) => {
             chrome.runtime.sendMessage({ action: "FETCH_WEBSITE", url: webUrl }, resolve);
         });
 
-        if (!response.success) {
-            throw new Error('No se pudo descargar la web: ' + response.error);
+        if (!homeResponse.success) {
+            throw new Error('No se pudo descargar la web: ' + homeResponse.error);
         }
-
-        updateLoading('Analizando coherencia SEO...');
 
         // 4. Parse website data
         let webData = {};
-        let htmlString = null;
+        let homeHtmlString = null;
         
-        if (typeof response.data === 'string') {
+        if (typeof homeResponse.data === 'string') {
             // Manejo de caché si Chrome no recargó el Service Worker
-            htmlString = response.data;
-            webData = { finalUrl: webUrl, redirected: false, status: 200 };
-        } else if (response.data) {
-            webData = { ...response.data };
-            htmlString = response.data.html;
+            homeHtmlString = homeResponse.data;
+            webData = { finalUrl: webUrl, redirected: false, status: 200, analyzedPages: [] };
+        } else if (homeResponse.data) {
+            webData = { ...homeResponse.data, analyzedPages: [] };
+            homeHtmlString = homeResponse.data.html;
         }
 
-        if (!webData.isBlocked && htmlString) {
-            const extractor = new WebExtractor(htmlString, webUrl);
+        let internalLinks = [];
+
+        if (!webData.isBlocked && homeHtmlString) {
+            const extractor = new WebExtractor(homeHtmlString, webUrl);
             const extracted = extractor.extract();
             webData = { ...webData, ...extracted };
+            
+            const sourceU = webData.finalUrl || webUrl;
+            webData.phones = webData.phones.map(p => ({ value: p, sourceUrl: sourceU }));
+            webData.jsonLd = webData.jsonLd.map(s => ({ ...s, sourceUrl: sourceU }));
+            webData.texts = [{ text: webData.texts, sourceUrl: sourceU }];
+            webData.analyzedPages.push(sourceU);
+            
+            internalLinks = extractor.extractInternalLinks(sourceU);
         } else {
             // fallback empty data for blocked requests
-            webData = { ...webData, title: '', metaDescription: '', canonical: '', h1: '', jsonLd: [], phones: [], texts: '' };
+            webData = { ...webData, title: '', metaDescription: '', canonical: '', h1: '', jsonLd: [], phones: [], texts: [], analyzedPages: [] };
+        }
+
+        // 4.5 Crawling Interno
+        if (internalLinks.length > 0) {
+            const keywordRegex = /(contacto|contact|nosotros|about|quienes-somos|legal|aviso|privacy|privacidad|servicios|services)/i;
+            let targetLinks = internalLinks.filter(link => keywordRegex.test(link));
+            
+            // Prioritize specific keywords or just take the first 3
+            if (targetLinks.length === 0) {
+                targetLinks = internalLinks.slice(0, 3);
+            } else {
+                // remove duplicates just in case
+                targetLinks = [...new Set(targetLinks)].slice(0, 3);
+            }
+
+            if (targetLinks.length > 0) {
+                updateLoading(`Rastreando páginas internas (${targetLinks.length})...`);
+                const fetchPromises = targetLinks.map(link => {
+                    return new Promise((resolve) => {
+                        chrome.runtime.sendMessage({ action: "FETCH_WEBSITE", url: link }, resolve);
+                    }).then(res => ({ url: link, res }));
+                });
+
+                const resultsArray = await Promise.all(fetchPromises);
+                
+                for (let result of resultsArray) {
+                    const { url, res } = result;
+                    if (res.success && res.data && !res.data.isBlocked && res.data.html) {
+                        const htmlStr = typeof res.data === 'string' ? res.data : res.data.html;
+                        const finalU = (typeof res.data === 'string' ? url : res.data.finalUrl) || url;
+                        
+                        const extractor = new WebExtractor(htmlStr, finalU);
+                        const extracted = extractor.extract();
+                        
+                        webData.analyzedPages.push(finalU);
+                        webData.phones.push(...extracted.phones.map(p => ({ value: p, sourceUrl: finalU })));
+                        webData.jsonLd.push(...extracted.jsonLd.map(s => ({ ...s, sourceUrl: finalU })));
+                        webData.texts.push({ text: extracted.texts, sourceUrl: finalU });
+                    }
+                }
+            }
         }
         
-        console.log("Web Data:", webData);
+        console.log("Aggregated Web Data:", webData);
 
         // 5. Compare
         const comparator = new Comparator(gmbData, webData);
@@ -169,6 +218,25 @@ function renderResults(results) {
     renderList('results-nap', results.nap);
     renderList('results-schema', results.schema);
     renderList('results-services', results.services);
+
+    // Render analyzed pages
+    const pagesList = document.getElementById('analyzed-pages-list');
+    if (results.analyzedPages && results.analyzedPages.length > 0) {
+        let pagesHtml = '<strong>Páginas analizadas:</strong><ul style="margin-top: 4px; padding-left: 16px; margin-bottom: 0;">';
+        results.analyzedPages.forEach(p => {
+            try {
+                let pathname = new URL(p).pathname || p;
+                if (pathname === '/') pathname = 'Home (/)';
+                pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${pathname}</a></li>`;
+            } catch(e) {
+                pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${p}</a></li>`;
+            }
+        });
+        pagesHtml += '</ul>';
+        pagesList.innerHTML = pagesHtml;
+    } else {
+        pagesList.innerHTML = '';
+    }
 }
 
 function exportToMarkdown(results, gmbData) {
@@ -194,7 +262,15 @@ function exportToMarkdown(results, gmbData) {
     md += `## URL y Canonical\n${mapItems(results.url)}\n\n`;
     md += `## NAP (Nombre, Dirección, Teléfono)\n${mapItems(results.nap)}\n\n`;
     md += `## Schema Markup\n${mapItems(results.schema)}\n\n`;
-    md += `## Categoría y Servicios\n${mapItems(results.services)}\n`;
+    md += `## Categoría y Servicios\n${mapItems(results.services)}\n\n`;
+
+    if (results.analyzedPages && results.analyzedPages.length > 0) {
+        md += `## Páginas Analizadas\n`;
+        results.analyzedPages.forEach(p => {
+            md += `- ${p}\n`;
+        });
+        md += '\n';
+    }
 
     navigator.clipboard.writeText(md).then(() => {
         const originalText = btnExport.innerHTML;

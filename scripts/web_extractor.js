@@ -69,4 +69,34 @@ class WebExtractor {
         const elements = Array.from(this.doc.querySelectorAll('h1, h2, h3, p, li, a'));
         return elements.map(el => el.innerText.trim()).join(' ').substring(0, 10000); // Limit to avoid huge string
     }
+
+    extractInternalLinks(baseUrl) {
+        if (!baseUrl) return [];
+        let baseObj;
+        try {
+            baseObj = new URL(baseUrl);
+        } catch(e) { return []; }
+
+        const links = Array.from(this.doc.querySelectorAll('a[href]'));
+        const internal = new Set();
+
+        links.forEach(a => {
+            let href = a.getAttribute('href');
+            if (!href || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('#')) return;
+
+            try {
+                let urlObj = new URL(href, baseObj.origin);
+                if (urlObj.origin === baseObj.origin) {
+                    urlObj.hash = '';
+                    let cleanUrl = urlObj.href.split('?')[0]; // Remove query params
+                    
+                    if (!cleanUrl.match(/\.(pdf|jpg|jpeg|png|gif|webp|svg|xml|json|css|js)$/i)) {
+                        internal.add(cleanUrl);
+                    }
+                }
+            } catch(e) { }
+        });
+
+        return Array.from(internal);
+    }
 }
