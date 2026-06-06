@@ -70,6 +70,10 @@ class WebExtractor {
         return elements.map(el => el.innerText.trim()).join(' ').substring(0, 10000); // Limit to avoid huge string
     }
 
+    normalizeHost(host) {
+        return host.replace(/^www\./, '').toLowerCase();
+    }
+
     extractInternalLinks(baseUrl) {
         if (!baseUrl) return [];
         let baseObj;
@@ -81,16 +85,19 @@ class WebExtractor {
         const internal = new Set();
 
         links.forEach(a => {
-            let href = a.getAttribute('href');
-            if (!href || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('#')) return;
+            const rawHref = a.getAttribute('href');
+            if (!rawHref) return;
+            const href = rawHref.trim();
+
+            if (href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('#')) return;
 
             try {
-                let urlObj = new URL(href, baseObj.origin);
-                if (urlObj.origin === baseObj.origin) {
+                let urlObj = new URL(href, baseUrl); // Fix relative urls by using full baseUrl
+                if (this.normalizeHost(urlObj.hostname) === this.normalizeHost(baseObj.hostname)) {
                     urlObj.hash = '';
                     let cleanUrl = urlObj.href.split('?')[0]; // Remove query params
                     
-                    if (!cleanUrl.match(/\.(pdf|jpg|jpeg|png|gif|webp|svg|xml|json|css|js)$/i)) {
+                    if (!cleanUrl.match(/\.(pdf|jpg|jpeg|png|gif|webp|svg|xml|json|css|js|zip)$/i)) {
                         internal.add(cleanUrl);
                     }
                 }

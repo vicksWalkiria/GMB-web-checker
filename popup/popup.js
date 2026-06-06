@@ -110,17 +110,17 @@ async function startAnalysis() {
         }
 
         // 4.5 Crawling Interno
+        let candidateLinks = [];
+        let targetLinks = [];
+
         if (internalLinks.length > 0) {
-            const keywordRegex = /(contacto|contact|nosotros|about|quienes-somos|legal|aviso|privacy|privacidad|servicios|services)/i;
-            let targetLinks = internalLinks.filter(link => keywordRegex.test(link));
-            
-            // Prioritize specific keywords or just take the first 3
-            if (targetLinks.length === 0) {
-                targetLinks = internalLinks.slice(0, 3);
-            } else {
-                // remove duplicates just in case
-                targetLinks = [...new Set(targetLinks)].slice(0, 3);
-            }
+            candidateLinks = internalLinks
+                .map(url => ({ url, score: scoreInternalLink(url) }))
+                .filter(item => item.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .map(item => item.url);
+                
+            targetLinks = candidateLinks.slice(0, 3);
 
             if (targetLinks.length > 0) {
                 updateLoading(`Rastreando páginas internas (${targetLinks.length})...`);
@@ -150,6 +150,7 @@ async function startAnalysis() {
             }
         }
         
+        webData.candidatePages = candidateLinks;
         console.log("Aggregated Web Data:", webData);
 
         // 5. Compare
@@ -246,7 +247,20 @@ function renderResults(results) {
         pagesHtml += '</ul>';
 
         if (results.analyzedPages.length === 1) {
-            pagesHtml += '<div style="margin-top:4px; font-style:italic;">Páginas internas clave detectadas: ninguna.</div>';
+            pagesHtml += '<div style="margin-top:4px; font-style:italic;">Páginas internas analizadas: ninguna.</div>';
+        }
+        
+        if (results.candidatePages && results.candidatePages.length > 0) {
+            pagesHtml += '<strong style="display:block; margin-top:8px;">Páginas internas candidatas detectadas:</strong><ul style="margin-top: 4px; padding-left: 16px; margin-bottom: 0;">';
+            results.candidatePages.forEach(p => {
+                try {
+                    let pathname = new URL(p).pathname || p;
+                    pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${pathname}</a></li>`;
+                } catch(e) {
+                    pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${p}</a></li>`;
+                }
+            });
+            pagesHtml += '</ul>';
         }
 
         pagesList.innerHTML = pagesHtml;
@@ -290,9 +304,17 @@ function exportToMarkdown(results, gmbData) {
                 md += `- ${results.analyzedPages[i]}\n`;
             }
         } else {
-            md += `\nPáginas internas clave detectadas: ninguna.\n`;
+            md += `\nPáginas internas analizadas: ninguna.\n`;
         }
         md += '\n';
+        
+        if (results.candidatePages && results.candidatePages.length > 0) {
+            md += `**Páginas internas candidatas detectadas:**\n`;
+            results.candidatePages.forEach(p => {
+                md += `- ${p}\n`;
+            });
+            md += '\n';
+        }
     }
 
     md += `---\n*Nota: Este análisis mide la coherencia básica entre la ficha de Google, la web enlazada y el schema detectado en la Home y en un rastreo limitado de páginas internas clave. No sustituye una auditoría SEO local completa.*\n`;
@@ -305,4 +327,21 @@ function exportToMarkdown(results, gmbData) {
         console.error('Failed to copy: ', err);
         alert('Error al copiar al portapapeles.');
     });
+}
+
+function scoreInternalLink(url) {
+    let path = '';
+    try {
+        path = new URL(url).pathname.toLowerCase();
+    } catch(e) {
+        path = url.toLowerCase();
+    }
+    
+    if (/(contacto|contact)/i.test(path)) return 100;
+    if (/(servicios|servicio|services|service)/i.test(path)) return 90;
+    if (/(sobre|nosotros|quienes-somos|about)/i.test(path)) return 80;
+    if (/(aviso-legal|legal)/i.test(path)) return 60;
+    if (/(privacidad|privacy)/i.test(path)) return 50;
+    
+    return 0;
 }
