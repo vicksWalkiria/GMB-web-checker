@@ -80,8 +80,16 @@ async function startAnalysis() {
         updateLoading('Analizando coherencia SEO...');
 
         // 4. Parse website data
-        const extractor = new WebExtractor(response.data, webUrl);
-        const webData = extractor.extract();
+        let webData = { ...response.data };
+        if (!response.data.isBlocked && response.data.html) {
+            const extractor = new WebExtractor(response.data.html, webUrl);
+            const extracted = extractor.extract();
+            webData = { ...webData, ...extracted };
+        } else {
+            // fallback empty data for blocked requests
+            webData = { ...webData, title: '', metaDescription: '', canonical: '', h1: '', jsonLd: [], phones: [], texts: '' };
+        }
+        
         console.log("Web Data:", webData);
 
         // 5. Compare
