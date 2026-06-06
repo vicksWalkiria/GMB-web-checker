@@ -1,53 +1,56 @@
 # GMB-Web Coherence Checker
 
-Extensión de Chrome orientada a auditorías SEO Local. Su objetivo principal es extraer los datos de una ficha de Google My Business (desde Google Maps o el Knowledge Panel de Search) y compararlos automáticamente con el código fuente de la página web oficial enlazada.
+Extensión de Chrome de código abierto orientada a auditorías SEO Local avanzadas. Su objetivo principal es extraer los datos de una ficha de Google Business Profile (desde Google Maps o el panel de Google Search) y compararlos automáticamente con el código fuente de la página web oficial enlazada y sus páginas internas clave.
 
-Esta herramienta responde a una pregunta clave en SEO local: **“¿Lo que Google entiende de este negocio coincide con lo que declara su web?”**
+Esta herramienta responde a una pregunta clave en SEO local: **“¿Lo que Google entiende de este negocio local coincide técnicamente con lo que declara su web?”**
+
+![Score de Coherencia y Auditoría](icons/icon128.png)
 
 ## 🏗️ Arquitectura y Funcionamiento
 
-La extensión se ha construido bajo el estándar **Manifest V3**, priorizando el rendimiento, la privacidad y la ausencia de bloqueos CORS. El flujo de ejecución es el siguiente:
+La extensión se ha construido bajo el estándar **Manifest V3**, priorizando el rendimiento, la privacidad y la superación de bloqueos CORS. El flujo de ejecución es el siguiente:
 
-1. **Inyección y Scraping (DOM):** Mediante `chrome.scripting`, se inyecta un script ligero en la pestaña activa de Google. Este script utiliza heurísticas, selectores CSS y Regex para extraer el NAP (Nombre, Dirección, Teléfono), la Categoría principal y la URL oficial directamente del DOM de la ficha.
-2. **Descarga Web sin CORS:** El Service Worker realiza una petición HTTP GET a la web enlazada desde el contexto de la extensión. Gracias a los permisos de host (`<all_urls>`), puede descargar el HTML de dominios externos evitando las restricciones CORS habituales que tendría un script ejecutado dentro de una página web.
-3. **Control de Bloqueos y Errores:** Si la web no devuelve HTML válido, responde con error HTTP, redirige varias veces o bloquea la petición (ej. Cloudflare), la extensión lo registra como una incidencia técnica independiente para no confundir un fallo de acceso con una ausencia real de datos SEO.
-4. **Extracción Semántica:** Un analizador virtual (`DOMParser`) extrae las metaetiquetas (Title, H1, Canonical) y parsea recursivamente cualquier bloque de Schema.org (`application/ld+json`).
-5. **Normalización y Fuzzy Matching:** Antes de cruzar los datos, se normalizan textos y teléfonos. Las comparaciones de nombres y categorías utilizan "Fuzzy Overlap" (superposición de tokens) para evitar falsos negativos por guiones o coletillas locales.
+1. **Inyección y Scraping (DOM):** Mediante `chrome.scripting`, se inyecta un script ligero en la pestaña activa de Google. Extrae de forma limpia el NAP (Nombre, Dirección, Teléfono), la Categoría principal y la URL oficial de la ficha.
+2. **Descarga Web sin CORS:** El `Service Worker` realiza una petición HTTP GET a la web enlazada desde el contexto de la extensión, superando las restricciones CORS habituales.
+3. **Mini-Crawler Interno Inteligente:** La extensión no se limita a la Home. Detecta todos los enlaces internos y los **puntúa semánticamente**. Prioriza el rastreo de páginas de `contacto`, `legal`, y páginas de `servicios` que coincidan geográficamente con la ciudad de la ficha GMB.
+4. **Extracción Semántica:** Un analizador virtual extrae metaetiquetas (Title, H1, Canonical), textos visibles y parsea recursivamente cualquier bloque de Schema.org (`application/ld+json`).
+5. **Cross-Validation y Scoring:** Se cruzan los datos normalizando textos y teléfonos. Las comparaciones de nombres y categorías utilizan un motor de compatibilidad semántica para evitar falsos negativos.
 
-## ⚖️ Sistema de Scoring por Severidad
+## ⚖️ Sistema de Scoring y Auditoría
 
-El análisis categoriza las discrepancias para generar un *Score de Coherencia* útil y ponderado:
+El análisis categoriza las discrepancias para generar un *Score de Coherencia* útil, ponderado y 100% trazable (te indica exactamente en qué URL interna se encontró el dato):
 
-*   🔴 **Críticos:** Teléfono o dirección distintos entre ficha y web, ausencia total de NAP en la web, Schema `LocalBusiness` con datos contradictorios.
-*   🟡 **Medios:** Categoría principal no reforzada en Title/H1, falta de Schema `Service`, NAP visible pero ausente en el Schema.
-*   🔵 **Bajos:** Falta de enlaces `sameAs` a redes sociales o directorios, Meta Description pobre, o URLs Canonical mejorables.
+*   🔴 **Críticos:** Teléfono contradictorio en Schema, ausencia total de NAP en toda la web, fallos en la URL final.
+*   🟡 **Medios:** Categoría principal no reforzada en textos, falta de Schema o Schema incompleto.
+*   🔵 **Bajos / Info:** Schema detectado en una página interna en lugar de la Home (recomendación de refuerzo), Meta Description pobre, o URLs Canonical mejorables.
 
-## 🚀 Roadmap de Desarrollo
+## 🚀 Estado del Desarrollo
 
-El desarrollo de la herramienta está estructurado en 4 fases incrementales:
+El desarrollo de la herramienta ha superado las fases fundamentales y es plenamente funcional en entornos de producción:
 
-### Fase 1 — MVP (Completada)
-- [x] Extraer datos desde ficha pública (Maps/Search).
-- [x] Analizar la URL enlazada (Home).
-- [x] Extraer Title, H1, description, teléfonos y Schema.
-- [x] Comparar NAP mediante coincidencia difusa.
-- [x] Score visual en Popup.
+### ✅ Fases Completadas (1, 2 y 3)
+- [x] Extracción robusta de datos desde ficha pública (Maps/Search).
+- [x] Análisis sin bloqueos CORS de la URL enlazada y redirecciones finales.
+- [x] Extracción de Title, H1, description, textos visibles, teléfonos y Schema.
+- [x] Detección exhaustiva de entidades: `LocalBusiness`, `Organization`, `Service`, `sameAs`.
+- [x] Rastreo concurrente de páginas internas clave (Home + Top 3 candidatas locales).
+- [x] Motor de priorización semántica (Boost a páginas locales vs genéricas).
+- [x] Score visual y panel de resultados detallado.
+- [x] Exportación a Markdown profesional con trazabilidad de URLs.
 
-### Fase 2 — SEO Local Pro (Siguiente)
-- [ ] Analizar canonical y redirección final (ej. `http://` a `https://www.`).
-- [ ] Detección exhaustiva de entidades: `LocalBusiness`, `Organization`, `Service`, `sameAs`.
-- [ ] Clasificación estricta de errores por severidad.
-- [ ] Exportar informe al portapapeles o PDF para clientes.
-
-### Fase 3 — Crawling Ligero
-- [ ] Rastreo de páginas clave: `/contacto`, `/servicios`, `/sobre-nosotros`.
-- [ ] Búsqueda de NAP distribuido en varias URLs.
-- [ ] Detección de arquitectura local y silos.
-
-### Fase 4 — Recomendaciones Automáticas
-- [ ] Proponer código Schema `LocalBusiness` corregido.
-- [ ] Sugerencias de optimización para Title y H1.
+### ⏳ Fase 4 — Recomendaciones Automáticas (Futuro)
+- [ ] Proponer código Schema `LocalBusiness` corregido directamente en la extensión.
 - [ ] Generar checklist accionable de implementación.
+- [ ] Sugerencias de optimización para Title y H1.
+
+## 📥 Instalación (Modo Desarrollador)
+
+Al no estar publicada en la Chrome Web Store, su instalación se realiza manualmente:
+
+1. Descarga el repositorio en `.zip` (botón verde `Code` > `Download ZIP`) y descomprímelo.
+2. Abre Google Chrome o cualquier navegador Chromium y ve a `chrome://extensions/`.
+3. Activa el **Modo Desarrollador** en la esquina superior derecha.
+4. Haz clic en **Cargar descomprimida** y selecciona la carpeta donde extrajiste la extensión.
 
 ---
-*Herramienta de uso interno para auditorías SEO locales rápidas y eficientes.*
+*Desarrollada por Víctor Alonso - Consultor SEO Técnico*
