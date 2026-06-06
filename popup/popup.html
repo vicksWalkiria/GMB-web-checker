@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMB-Web Checker</title>
+    <link rel="stylesheet" href="popup.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="currentColor"/>
+                </svg>
+                <h1>GMB-Web Checker</h1>
+            </div>
+        </header>
+
+        <main>
+            <div id="initial-state" class="state-view active">
+                <p class="description">Abre una ficha de Google Maps o resultados de búsqueda y analiza su coherencia SEO con la web oficial.</p>
+                <button id="btn-analyze" class="btn-primary">
+                    <span class="btn-text">Analizar Coherencia</span>
+                    <div class="spinner hidden"></div>
+                </button>
+            </div>
+
+            <div id="loading-state" class="state-view hidden">
+                <div class="loading-animation">
+                    <div class="pulse"></div>
+                </div>
+                <p id="loading-status">Extrayendo datos de Google...</p>
+            </div>
+
+            <div id="error-state" class="state-view hidden">
+                <div class="alert alert-error">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 8V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 16H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span id="error-message">Error al analizar.</span>
+                </div>
+                <button id="btn-retry" class="btn-secondary">Intentar de nuevo</button>
+            </div>
+
+            <div id="result-state" class="state-view hidden">
+                <div class="score-card">
+                    <div class="score-circle">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg"
+                                d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                            <path class="circle"
+                                stroke-dasharray="0, 100"
+                                id="score-path"
+                                d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                            <text x="18" y="20.35" class="percentage" id="score-text">0</text>
+                        </svg>
+                    </div>
+                    <div class="score-info">
+                        <h3>Score de Coherencia</h3>
+                        <p id="score-label">Análisis completado</p>
+                    </div>
+                </div>
+
+                <div class="results-accordion">
+                    <!-- NAP Section -->
+                    <div class="accordion-item">
+                        <button class="accordion-header" aria-expanded="true">
+                            <span class="title">NAP (Nombre, Dirección, Teléfono)</span>
+                            <span class="icon">↓</span>
+                        </button>
+                        <div class="accordion-content" id="results-nap">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Schema Section -->
+                    <div class="accordion-item">
+                        <button class="accordion-header" aria-expanded="false">
+                            <span class="title">Schema Markup</span>
+                            <span class="icon">↓</span>
+                        </button>
+                        <div class="accordion-content" id="results-schema">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Services/Category Section -->
+                    <div class="accordion-item">
+                        <button class="accordion-header" aria-expanded="false">
+                            <span class="title">Servicios y Categoría</span>
+                            <span class="icon">↓</span>
+                        </button>
+                        <div class="accordion-content" id="results-services">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="actions-footer">
+                    <button id="btn-dashboard" class="btn-outline">Ver Informe Completo</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../scripts/normalizer.js"></script>
+    <script src="../scripts/web_extractor.js"></script>
+    <script src="../scripts/comparator.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>
