@@ -206,24 +206,49 @@ class Comparator {
         }
 
         if (!hasService) {
-             addResult('schema', 'medium', false, '', 'Falta schema Service (Recomendado para definir los servicios)', '');
+             addResult('schema', 'medium', false, '', 'No se detecta schema Service en la URL analizada', '');
         }
 
         // --- 4. CATEGORÍA / SERVICIOS ---
+        const categorySynonyms = {
+            "servicio de marketing por internet": [
+                "seo",
+                "consultor seo",
+                "posicionamiento seo",
+                "marketing digital",
+                "auditoría seo",
+                "seo técnico"
+            ]
+        };
+
         const gmbCatNorm = Normalizer.normalizeText(this.gmb.category);
         if (gmbCatNorm) {
             const webTitleNorm = Normalizer.normalizeText(this.web.title);
             const webH1Norm = Normalizer.normalizeText(this.web.h1);
             
+            // Check synonyms
+            let hasSemanticMatch = false;
+            if (categorySynonyms[gmbCatNorm]) {
+                const synonyms = categorySynonyms[gmbCatNorm];
+                hasSemanticMatch = synonyms.some(syn => {
+                    const synNorm = Normalizer.normalizeText(syn);
+                    return webTitleNorm.includes(synNorm) || webH1Norm.includes(synNorm);
+                });
+            }
+
             const catInTitle = checkOverlap(gmbCatNorm, webTitleNorm);
             const catInH1 = checkOverlap(gmbCatNorm, webH1Norm);
             const catInText = checkOverlap(gmbCatNorm, webTextNorm);
             
-            addResult('services', 'medium', catInTitle || catInH1,
-                'Categoría GMB reforzada en Title o H1', 
-                'Categoría principal no reforzada en Title ni H1',
-                `Categoría GMB: ${this.gmb.category}`
-            );
+            if (hasSemanticMatch) {
+                addResult('services', 'success', true, 'La categoría GMB es genérica, pero la web refuerza una especialización compatible en Title/H1', '');
+            } else {
+                addResult('services', 'medium', catInTitle || catInH1,
+                    'Categoría GMB reforzada en Title o H1', 
+                    'Categoría principal no reforzada en Title ni H1',
+                    `Categoría GMB: ${this.gmb.category}`
+                );
+            }
 
             if (catInText) {
                 addResult('services', 'success', true, 'Categoría GMB mencionada en textos visibles', '');
