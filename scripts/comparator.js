@@ -318,7 +318,11 @@ class Comparator {
             
             if (!hasLocal) {
                 addResult('services', 'low', false, '', 'La meta description no parece reforzar una ubicación local explícita', `Desc: ${metaDesc}`);
+            } else {
+                addResult('services', 'success', true, 'Meta description optimizada con referencias locales', `Desc: ${metaDesc}`);
             }
+        } else {
+            addResult('services', 'success', true, 'Meta description detectada con longitud óptima', `Desc: ${metaDesc}`);
         }
 
         // --- CALCULAR SCORE FINAL ---
