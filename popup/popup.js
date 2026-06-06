@@ -223,16 +223,32 @@ function renderResults(results) {
     const pagesList = document.getElementById('analyzed-pages-list');
     if (results.analyzedPages && results.analyzedPages.length > 0) {
         let pagesHtml = '<strong>Páginas analizadas:</strong><ul style="margin-top: 4px; padding-left: 16px; margin-bottom: 0;">';
-        results.analyzedPages.forEach(p => {
-            try {
-                let pathname = new URL(p).pathname || p;
-                if (pathname === '/') pathname = 'Home (/)';
-                pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${pathname}</a></li>`;
-            } catch(e) {
-                pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${p}</a></li>`;
+        
+        const homeUrl = results.analyzedPages[0];
+        try {
+            let homePath = new URL(homeUrl).pathname || '/';
+            pagesHtml += `<li><a href="${homeUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">Home (${homePath})</a></li>`;
+        } catch(e) {
+            pagesHtml += `<li><a href="${homeUrl}" target="_blank" style="color: var(--primary); text-decoration: none;">Home</a></li>`;
+        }
+        
+        if (results.analyzedPages.length > 1) {
+            for (let i = 1; i < results.analyzedPages.length; i++) {
+                const p = results.analyzedPages[i];
+                try {
+                    let pathname = new URL(p).pathname || p;
+                    pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${pathname}</a></li>`;
+                } catch(e) {
+                    pagesHtml += `<li><a href="${p}" target="_blank" style="color: var(--primary); text-decoration: none;">${p}</a></li>`;
+                }
             }
-        });
+        }
         pagesHtml += '</ul>';
+
+        if (results.analyzedPages.length === 1) {
+            pagesHtml += '<div style="margin-top:4px; font-style:italic;">Páginas internas clave detectadas: ninguna.</div>';
+        }
+
         pagesList.innerHTML = pagesHtml;
     } else {
         pagesList.innerHTML = '';
@@ -266,13 +282,20 @@ function exportToMarkdown(results, gmbData) {
 
     if (results.analyzedPages && results.analyzedPages.length > 0) {
         md += `## Páginas Analizadas\n`;
-        results.analyzedPages.forEach(p => {
-            md += `- ${p}\n`;
-        });
+        const homeUrl = results.analyzedPages[0];
+        md += `- Home: ${homeUrl}\n`;
+        
+        if (results.analyzedPages.length > 1) {
+            for (let i = 1; i < results.analyzedPages.length; i++) {
+                md += `- ${results.analyzedPages[i]}\n`;
+            }
+        } else {
+            md += `\nPáginas internas clave detectadas: ninguna.\n`;
+        }
         md += '\n';
     }
 
-    md += `---\n*Nota: Este análisis mide la coherencia básica entre ficha, web y schema en la Home y páginas internas clave. No sustituye una auditoría SEO local completa.*\n`;
+    md += `---\n*Nota: Este análisis mide la coherencia básica entre la ficha de Google, la web enlazada y el schema detectado en la Home y en un rastreo limitado de páginas internas clave. No sustituye una auditoría SEO local completa.*\n`;
 
     navigator.clipboard.writeText(md).then(() => {
         const originalText = btnExport.innerHTML;
