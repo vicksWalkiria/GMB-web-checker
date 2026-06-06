@@ -80,9 +80,20 @@ async function startAnalysis() {
         updateLoading('Analizando coherencia SEO...');
 
         // 4. Parse website data
-        let webData = { ...response.data };
-        if (!response.data.isBlocked && response.data.html) {
-            const extractor = new WebExtractor(response.data.html, webUrl);
+        let webData = {};
+        let htmlString = null;
+        
+        if (typeof response.data === 'string') {
+            // Manejo de caché si Chrome no recargó el Service Worker
+            htmlString = response.data;
+            webData = { finalUrl: webUrl, redirected: false, status: 200 };
+        } else if (response.data) {
+            webData = { ...response.data };
+            htmlString = response.data.html;
+        }
+
+        if (!webData.isBlocked && htmlString) {
+            const extractor = new WebExtractor(htmlString, webUrl);
             const extracted = extractor.extract();
             webData = { ...webData, ...extracted };
         } else {
