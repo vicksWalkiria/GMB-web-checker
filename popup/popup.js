@@ -99,6 +99,7 @@ async function startAnalysis() {
 
         // 6. Render & Bind Export
         renderResults(results);
+        const btnExport = document.getElementById('btn-export');
         btnExport.onclick = () => exportToMarkdown(results, gmbData);
         switchState('result-state');
 
