@@ -30,7 +30,7 @@ class WebExtractor {
 
     getH1() {
         const h1s = Array.from(this.doc.querySelectorAll('h1'));
-        return h1s.map(h => h.innerText.trim()).join(' | ');
+        return h1s.map(h => (h.textContent || '').trim()).join(' | ');
     }
 
     getJsonLd() {
@@ -39,7 +39,7 @@ class WebExtractor {
         
         scripts.forEach(script => {
             try {
-                const parsed = JSON.parse(script.innerText);
+                const parsed = JSON.parse(script.textContent || script.innerText || '{}');
                 // Handle both single objects and arrays of schemas
                 if (Array.isArray(parsed)) {
                     schemas.push(...parsed);
@@ -57,9 +57,9 @@ class WebExtractor {
     }
 
     extractPhones() {
-        // Regex for Spanish phones and general international formats
-        const bodyText = this.doc.body.innerText;
-        const regex = /(?:\+34|0034|34)?[\s-]*([6789][0-9]{2}[\s-]*[0-9]{3}[\s-]*[0-9]{3})/g;
+        // Regex for Spanish phones with arbitrary spaces (e.g. 675 94 64 86 or 675 946 486)
+        const bodyText = this.doc.body.textContent || '';
+        const regex = /(?:\+34|0034|34)?[\s-]*([6789](?:[\s-]*[0-9]){8})/g;
         const matches = [...bodyText.matchAll(regex)];
         return [...new Set(matches.map(m => m[1].replace(/[\s-]/g, '')))];
     }
@@ -67,7 +67,7 @@ class WebExtractor {
     getVisibleText() {
         // Just a basic heuristic, grabbing headers and p tags
         const elements = Array.from(this.doc.querySelectorAll('h1, h2, h3, p, li, a'));
-        return elements.map(el => el.innerText.trim()).join(' ').substring(0, 10000); // Limit to avoid huge string
+        return elements.map(el => (el.textContent || '').trim()).join(' ').substring(0, 10000); // Limit to avoid huge string
     }
 
     normalizeHost(host) {
