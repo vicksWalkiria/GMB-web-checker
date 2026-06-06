@@ -4,7 +4,7 @@ Extensión de Chrome de código abierto orientada a auditorías SEO Local avanza
 
 Esta herramienta responde a una pregunta clave en SEO local: **“¿Lo que Google entiende de este negocio local coincide técnicamente con lo que declara su web?”**
 
-![Score de Coherencia y Auditoría](https://www.victor-alonso.es/assets/img/gmb-web-checker.webp)
+![Score de Coherencia y Auditoría](assets/img/gmb-web-checker.webp)
 
 ## 🏗️ Arquitectura y Funcionamiento
 
