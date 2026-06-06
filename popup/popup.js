@@ -105,7 +105,7 @@ function renderResults(results) {
     const scorePath = document.getElementById('score-path');
     const scoreCard = document.querySelector('.score-card');
     
-    scoreText.innerText = results.score;
+    scoreText.textContent = results.score;
     scorePath.style.strokeDasharray = `${results.score}, 100`;
     
     scoreCard.className = 'score-card'; // reset
