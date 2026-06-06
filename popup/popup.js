@@ -120,7 +120,7 @@ async function startAnalysis() {
                 .sort((a, b) => b.score - a.score)
                 .map(item => item.url);
                 
-            targetLinks = candidateLinks.slice(0, 3);
+            targetLinks = candidateLinks.slice(0, 7);
 
             if (targetLinks.length > 0) {
                 updateLoading(`Rastreando páginas internas (${targetLinks.length})...`);
