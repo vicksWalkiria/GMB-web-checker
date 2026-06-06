@@ -10,6 +10,7 @@ class WebExtractor {
         return {
             title: this.doc.title || '',
             metaDescription: this.getMeta('description'),
+            canonical: this.getCanonical(),
             h1: this.getH1(),
             jsonLd: this.getJsonLd(),
             phones: this.extractPhones(),
@@ -20,6 +21,11 @@ class WebExtractor {
     getMeta(name) {
         const meta = this.doc.querySelector(`meta[name="${name}"i]`);
         return meta ? meta.getAttribute('content') : '';
+    }
+
+    getCanonical() {
+        const link = this.doc.querySelector('link[rel="canonical"i]');
+        return link ? link.getAttribute('href') : '';
     }
 
     getH1() {

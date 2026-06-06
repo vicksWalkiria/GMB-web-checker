@@ -67,11 +67,22 @@
                     </div>
                     <div class="score-info">
                         <h3>Score de Coherencia</h3>
-                        <p id="score-label">Análisis completado</p>
+                        <p id="score-label" style="font-weight: 600; color: var(--primary-color);">Analizando...</p>
                     </div>
                 </div>
 
                 <div class="results-accordion">
+                    <!-- URL Section -->
+                    <div class="accordion-item">
+                        <button class="accordion-header" aria-expanded="true">
+                            <span class="title">URL y Canonical</span>
+                            <span class="icon">↓</span>
+                        </button>
+                        <div class="accordion-content" id="results-url">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
                     <!-- NAP Section -->
                     <div class="accordion-item">
                         <button class="accordion-header" aria-expanded="true">
@@ -107,7 +118,11 @@
                 </div>
                 
                 <div class="actions-footer">
-                    <button id="btn-dashboard" class="btn-outline">Ver Informe Completo</button>
+                    <button id="btn-export" class="btn-primary" style="margin-bottom: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right:4px"><path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 21V13H7V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 3V8H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Copiar Informe (Markdown)
+                    </button>
+                    <button id="btn-dashboard" class="btn-outline hidden">Ver Informe Completo</button>
                 </div>
             </div>
         </main>

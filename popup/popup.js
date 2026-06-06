@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const btnAnalyze = document.getElementById('btn-analyze');
     const btnRetry = document.getElementById('btn-retry');
-    const btnDashboard = document.getElementById('btn-dashboard');
+    const btnExport = document.getElementById('btn-export');
     
     btnAnalyze.addEventListener('click', startAnalysis);
     btnRetry.addEventListener('click', () => switchState('initial-state'));
@@ -89,8 +89,9 @@ async function startAnalysis() {
         const results = comparator.compare();
         console.log("Results:", results);
 
-        // 6. Render
+        // 6. Render & Bind Export
         renderResults(results);
+        btnExport.onclick = () => exportToMarkdown(results, gmbData);
         switchState('result-state');
 
     } catch (e) {
@@ -104,12 +105,14 @@ function renderResults(results) {
     const scoreText = document.getElementById('score-text');
     const scorePath = document.getElementById('score-path');
     const scoreCard = document.querySelector('.score-card');
+    const scoreLabel = document.getElementById('score-label');
     
     scoreText.textContent = results.score;
     scorePath.style.strokeDasharray = `${results.score}, 100`;
+    scoreLabel.textContent = results.label;
     
     scoreCard.className = 'score-card'; // reset
-    if (results.score >= 80) scoreCard.classList.add('score-high');
+    if (results.score >= 85) scoreCard.classList.add('score-high');
     else if (results.score >= 50) scoreCard.classList.add('score-med');
     else scoreCard.classList.add('score-low');
 
@@ -124,8 +127,9 @@ function renderResults(results) {
         const html = items.map(item => {
             let icon = 'ℹ️';
             if (item.status === 'success') icon = '✅';
-            if (item.status === 'warning') icon = '⚠️';
-            if (item.status === 'error') icon = '❌';
+            if (item.status === 'critical') icon = '🔴';
+            if (item.status === 'medium') icon = '🟡';
+            if (item.status === 'low') icon = '🔵';
 
             return `
                 <div class="result-item">
@@ -141,7 +145,43 @@ function renderResults(results) {
         container.innerHTML = `<div class="content-inner">${html}</div>`;
     };
 
+    renderList('results-url', results.url);
     renderList('results-nap', results.nap);
     renderList('results-schema', results.schema);
     renderList('results-services', results.services);
+}
+
+function exportToMarkdown(results, gmbData) {
+    const btnExport = document.getElementById('btn-export');
+    
+    let md = `# Auditoría SEO Local: ${gmbData.name || 'Ficha'}\n\n`;
+    md += `**Score de Coherencia:** ${results.score}/100 (${results.label})\n\n`;
+    
+    const mapItems = (items) => {
+        return items.map(item => {
+            let icon = 'ℹ️';
+            if (item.status === 'success') icon = '✅';
+            if (item.status === 'critical') icon = '🔴';
+            if (item.status === 'medium') icon = '🟡';
+            if (item.status === 'low') icon = '🔵';
+            
+            let line = `- ${icon} ${item.text}`;
+            if (item.details) line += ` (*${item.details}*)`;
+            return line;
+        }).join('\n');
+    };
+
+    md += `## URL y Canonical\n${mapItems(results.url)}\n\n`;
+    md += `## NAP (Nombre, Dirección, Teléfono)\n${mapItems(results.nap)}\n\n`;
+    md += `## Schema Markup\n${mapItems(results.schema)}\n\n`;
+    md += `## Categoría y Servicios\n${mapItems(results.services)}\n`;
+
+    navigator.clipboard.writeText(md).then(() => {
+        const originalText = btnExport.innerHTML;
+        btnExport.innerHTML = '✅ ¡Copiado al portapapeles!';
+        setTimeout(() => btnExport.innerHTML = originalText, 2000);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        alert('Error al copiar al portapapeles.');
+    });
 }

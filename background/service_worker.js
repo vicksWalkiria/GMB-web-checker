@@ -18,9 +18,18 @@ async function fetchWebsiteData(url) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const html = await response.text();
-    return html;
+    return {
+        html: html,
+        finalUrl: response.url,
+        redirected: response.redirected,
+        status: response.status
+    };
   } catch (error) {
     console.error("Error fetching website:", error);
-    throw error;
+    return {
+        html: null,
+        error: error.message,
+        isBlocked: true
+    };
   }
 }
