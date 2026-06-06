@@ -259,22 +259,39 @@ class Comparator {
             let catInInternalTexts = false;
             let catSource = '';
             for (let textObj of this.web.texts) {
-                 if (checkOverlap(gmbCatNorm, Normalizer.normalizeText(textObj.text))) {
+                 const textNorm = Normalizer.normalizeText(textObj.text);
+                 if (checkOverlap(gmbCatNorm, textNorm)) {
                      catInInternalTexts = true;
                      catSource = textObj.sourceUrl;
                      break;
                  }
+                 if (categorySynonyms[gmbCatNorm]) {
+                     const synonyms = categorySynonyms[gmbCatNorm];
+                     if (synonyms.some(syn => textNorm.includes(Normalizer.normalizeText(syn)))) {
+                         catInInternalTexts = true;
+                         catSource = textObj.sourceUrl;
+                         break;
+                     }
+                 }
             }
             
+            // 1. Title/H1 Check
             if (hasSemanticMatch) {
-                addResult('services', 'success', true, 'La categoría GMB es genérica, pero la Home refuerza una especialización compatible en Title/H1', '');
-            } else if (catInTitle || catInH1) {
-                addResult('services', 'success', true, 'Categoría GMB reforzada en Title o H1 de la Home', '');
-            } else if (catInInternalTexts) {
-                addResult('services', 'medium', false, '', 'Categoría GMB mencionada en el sitio, pero no en zonas fuertes (Title/H1 de la Home)', `Encontrada en: ${catSource}`);
+                addResult('services', 'success', true, 'La categoría GMB es genérica, pero la web refuerza una especialización compatible en Title/H1', '');
             } else {
-                addResult('services', 'medium', false, '', 'Categoría principal no mencionada explícitamente en el sitio', `Categoría GMB: ${this.gmb.category}`);
+                addResult('services', 'medium', catInTitle || catInH1,
+                    'Categoría GMB reforzada en Title o H1 de la Home', 
+                    'Categoría principal no reforzada en Title ni H1 de la Home',
+                    `Categoría GMB: ${this.gmb.category}`
+                );
             }
+
+            // 2. Texts Check
+            addResult('services', 'low', catInInternalTexts,
+                'La categoría GMB o una variante semánticamente compatible aparece en textos visibles',
+                'Categoría principal no mencionada explícitamente en el sitio',
+                catInInternalTexts ? `Encontrada en: ${catSource}` : ''
+            );
         }
 
         // Meta Description

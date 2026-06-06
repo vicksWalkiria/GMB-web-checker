@@ -272,6 +272,8 @@ function exportToMarkdown(results, gmbData) {
         md += '\n';
     }
 
+    md += `---\n*Nota: Este análisis mide la coherencia básica entre ficha, web y schema en la Home y páginas internas clave. No sustituye una auditoría SEO local completa.*\n`;
+
     navigator.clipboard.writeText(md).then(() => {
         const originalText = btnExport.innerHTML;
         btnExport.innerHTML = '✅ ¡Copiado al portapapeles!';
